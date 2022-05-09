@@ -1,6 +1,6 @@
 # tiny-gdb
 
-- [ ] parse ELF file to extract symbols table
+- [ ] parse ELF file 
 
 - [ ] quit/q: quit from gdb  
 - [ ] break xxx
