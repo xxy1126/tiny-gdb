@@ -3,8 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <elf.h>
+#include <sys/ptrace.h>
 
 #define DEBUG 1 
+#define numOfCommand 0x10
+
 struct Symbol{
     size_t address; 
     char name[0x20]; 
@@ -17,11 +20,25 @@ struct Breakpoint {
     char name[0x20]; 
     struct breakpoint* next; 
 }; 
+struct Operate {
+    char name[0x10]; 
+    void (*run)(char *command); 
+};
+
 typedef struct Symbol Symbol; 
 typedef struct Breakpoint Breakpoint;
+typedef struct Operate Operate; 
+
+Operate instrution[numOfCommand];
 
 Symbol* symbol_head;
 Breakpoint* breakpoint_head; 
+
+
+void quit_command(char *command); 
+void breakpoint_command(char *command); 
+void set_breakpoint(Symbol *target); 
+
 
 void error(char *error_message) {
     printf("\e[31;1m1motfl:\e[0m %s\n", error_message); 
@@ -31,7 +48,41 @@ void init_gdb() {
     symbol_head = (Symbol*)malloc(sizeof(Symbol)); 
     breakpoint_head = (Breakpoint*)malloc(sizeof(Breakpoint)); 
 };
+void init_command() {
+    strcpy(instrution[0].name, "quit"); 
+    instrution[0].run = quit_command; 
 
+    strcpy(instrution[1].name, "breakpoint"); 
+    instrution[1].run = breakpoint_command; 
+}
+
+void quit_command(char *commmand) {
+    exit(0);
+}
+void breakpoint_command(char *arg) {
+#if DEBUG 
+    printf("set breakpoint at %s\n", arg);
+#endif 
+    bool isAddress = arg[0] == '*'; 
+    size_t address; 
+    if(isAddress) {
+        address = strtoll(arg[1]); 
+    }
+
+    Symbol* now = symbol_head->next; 
+    while(now != NULL) {
+        if((!isAddress) && (!strcmp(now->name, arg))) {
+            break;
+        } else if(isAddress && address == now->address) {
+            break;
+        }
+    }
+    set_breakpoint(now); 
+}
+void set_breakpoint(Symbol *target) {
+    Breakpoint* now = breakpoint_head->next; 
+
+}
 void parse_elf(char *filename) {
     printf("parsing\n");
     FILE *fp = fopen(filename, "r"); 
@@ -87,36 +138,44 @@ void parse_elf(char *filename) {
 #endif 
 }
 
-int check_command(char *command) {
-    return -1; 
+
+void parse_command(char *command) {
+    char *opt = strtok(command, " ");  
+    for(int i = 0; i < numOfCommand; i++) {
+        if(!strcmp(opt, instrution[i].name)) {
+            char *arg = strtok(NULL, " "); 
+            instrution[i].run(arg); 
+        }
+    }
+    return ; 
 }
-
-void parse_command() {
-
-}
-
-void init_command() {
-    
+void init_gbd_run(char *filename) {
+    int child = fork(); 
+    if(!child) {
+        ptrace(PTRACE_TRACEME, 0, NULL, NULL); 
+        execl(argv[1], argv[1], NULL); 
+        error("exec failed"); 
+    } else {
+        wait(NULL); 
+        return ; 
+    }
 }
 int main(int argc, char **argv) {
     if(argc < 2) {
         error("wrong argument"); 
     }
     
-    init_gdb(); 
+    init_gdb_var(); 
     init_command(); 
     parse_elf(argv[1]); 
+    init_gdb_run(argv[1]); 
+
 
     char* command = malloc(0x20); 
     while(1) {
         printf("\e[31;1m1motfl> \e[0m");
-        scanf("%32s", command); 
-        int opt = check_command(command); 
-        if(opt == -1) {
-            printf("command error\n"); 
-        } else {
-            parse_command(command); 
-        }
+        fgets(command, 0x20, stdin);
+        parse_command(command); 
     }
     free(command); 
     return 0;

@@ -1,6 +1,6 @@
 # tiny-gdb
 
-- [ ] parse ELF file 
+- [x] parse ELF file(only work for staticlink)
 
 - [ ] quit/q: quit from gdb  
 - [ ] break xxx
