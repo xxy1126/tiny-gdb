@@ -44,7 +44,9 @@ int child;
 void quit_command(char *command); 
 void breakpoint_command(char *command); 
 void continue_command(); 
+void info_command(char *command);
 void set_breakpoint(Symbol *target); 
+Breakpoint* find_breakpoint(struct user_regs_struct user_reg); 
 
 
 void message(char *content) {
@@ -72,9 +74,16 @@ void init_command() {
     strcpy(instrution[2].name, "continue"); 
     instrution[2].run = continue_command; 
     instrution[2].isbreak = 1; 
+
+    strcpy(instrution[3].name, "info"); 
+    instrution[2].run = info_command; 
+    instrution[2].isbreak = 0; 
 }
 void continue_command() {
     ptrace(PTRACE_CONT, child, 0, 0);
+}
+void info_command(char* command) {
+    printf("info %s", command);
 }
 void quit_command(char *commmand) {
     exit(0);
