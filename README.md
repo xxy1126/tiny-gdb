@@ -2,7 +2,6 @@
 
 
 - [x] parse ELF file(only work for staticlink)
-
 - [x] quit/q: quit from gdb  
 - [x] continue: continue execute  
 - [x] break xxx
