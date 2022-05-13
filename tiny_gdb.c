@@ -45,6 +45,10 @@ void quit_command(char *command);
 void breakpoint_command(char *command); 
 void continue_command(); 
 void info_command(char *command);
+void delete_command(char *arg);
+void delete_breakpoint(int idx); 
+void info_breakpoint(); 
+void info_register();
 void set_breakpoint(Symbol *target); 
 Breakpoint* find_breakpoint(struct user_regs_struct user_reg); 
 
@@ -76,14 +80,45 @@ void init_command() {
     instrution[2].isbreak = 1; 
 
     strcpy(instrution[3].name, "info"); 
-    instrution[2].run = info_command; 
-    instrution[2].isbreak = 0; 
+    instrution[3].run = info_command; 
+    instrution[3].isbreak = 0; 
+
+    strcpy(instrution[4].name, "delete"); 
+    instrution[4].run = delete_command; 
+    instrution[4].isbreak = 0;  
 }
 void continue_command() {
     ptrace(PTRACE_CONT, child, 0, 0);
 }
 void info_command(char* command) {
-    printf("info %s", command);
+    // printf("%s\n", command);
+    if(!strcmp(command, "breakpoint")) {
+        info_breakpoint(); 
+    } else if(!strcmp(command, "register")) {
+        info_register(); 
+    } else {
+        error("gg");
+    }
+}
+void info_breakpoint() {
+    Breakpoint *target = breakpoint_head->next; 
+    printf("%5s%20s%10s\n", "id", "address", "where");
+    while(target != NULL) {
+        printf("%5lu  0x%016lxx%10s\n", target->idx, target->address, target->name);
+        target = target->next;
+    }
+}
+void info_register() {
+    struct user_regs_struct user_reg; 
+    ptrace(PTRACE_GETREGS, child, 0, &user_reg); 
+    printf("%7s 0x%016llx\n", "rax", user_reg.rax); 
+    printf("%7s 0x%016llx\n", "rdi", user_reg.rdi); 
+    printf("%7s 0x%016llx\n", "rsi", user_reg.rsi); 
+    printf("%7s 0x%016llx\n", "rdx", user_reg.rdx); 
+    printf("%7s 0x%016llx\n", "rcx", user_reg.rcx); 
+    printf("%7s 0x%016llx\n", "rsp", user_reg.rsp); 
+    printf("%7s 0x%016llx\n", "rbp", user_reg.rbp); 
+    printf("%7s 0x%016llx\n", "rip", user_reg.rip); 
 }
 void quit_command(char *commmand) {
     exit(0);
@@ -112,6 +147,22 @@ void breakpoint_command(char *arg) {
     else 
         error("not found breakpoint");
 }
+void delete_command(char *arg) {
+    int idx = atoi(arg);
+    // printf("idx is %d\n", idx);
+    delete_breakpoint(idx); 
+}
+void delete_breakpoint(int idx) {
+    Breakpoint *target = breakpoint_head; 
+    while(target != NULL) {
+        Breakpoint *next = target->next; 
+        if(next->idx == idx) {
+            target->next = next->next; 
+            break; 
+        }
+        target = target->next;
+    }
+}
 Breakpoint* find_breakpoint(struct user_regs_struct user_reg) {
     Breakpoint* target = breakpoint_head->next; 
     while(target != NULL) {
@@ -123,7 +174,7 @@ Breakpoint* find_breakpoint(struct user_regs_struct user_reg) {
     return NULL; 
 }
 void set_breakpoint(Symbol *target) {
-    printf("set_breakpoint %s 0x%lux\n", target->name, target->address);
+    printf("set_breakpoint %s 0x%lu\n", target->name, target->address);
     Breakpoint* new_breakpoint = (Breakpoint*)malloc(sizeof(Breakpoint)); 
 
     new_breakpoint->address = target->address; 
@@ -198,7 +249,7 @@ void parse_elf(char *filename) {
 int parse_command(char *command) {
     char *opt = strtok(command, " ");  
     for(int i = 0; i < numOfCommand; i++) {
-        if(!strcmp(opt, instrution[i].name)) {      
+        if(!strcmp(opt, instrution[i].name)) {              
             char *arg = strtok(NULL, " "); 
             instrution[i].run(arg);
             return instrution[i].isbreak;  
